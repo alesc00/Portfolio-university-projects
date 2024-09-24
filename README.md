@@ -4,16 +4,16 @@ This repository contains links to my university projects focused on Data Science
 
 ## 🗂️ Projects
 
-1. **[📊 Applied Linear Model Project](https://github.com/alesc00/applied-linear-model-project.git)**  
+1. **[📊 Applied Linear Model Project]**  
    *Analyzed NBA statistics using linear models.*
 
-2. **[🤖 Deep Learning Project](https://github.com/alesc00/deep-learning-traffic-sign-recognition.git)**  
+2. **[🤖 Deep Learning Project]**  
    *Developed a neural network for image classification.*
 
-3. **[📈 Statistical Learning Project](https://github.com/alesc00/statistical-learning-project.git)**  
+3. **[📈 Statistical Learning Project]**  
    *Performed regression and classification tasks using machine learning algorithms.*
 
-4. **[📝 Text Mining Project](https://github.com/alesc00/Twitter-Sentiment-Analysis-Project.git)**  
+4. **[📝 Text Mining Project]**  
    *Extracted insights from textual data using natural language processing.*
 
 ## 👨‍💻 About Me
