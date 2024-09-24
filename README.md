@@ -7,7 +7,7 @@ This repository contains links to my university projects focused on Data Science
 1. **[📊 Applied Linear Model Project](https://github.com/alesc00/applied-linear-model-project.git)**  
    *Analyzed NBA statistics using linear models.*
 
-2. **[🤖 Deep Learning Project](#link-alla-repository-specifica)**  
+2. **[🤖 Deep Learning Project](https://github.com/alesc00/deep-learning-traffic-sign-recognition.git)**  
    *Developed a neural network for image classification.*
 
 3. **[📈 Statistical Learning Project](#link-alla-repository-specifica)**  
