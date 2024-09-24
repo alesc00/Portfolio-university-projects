@@ -1,0 +1,839 @@
+---
+title: "Stat Learning project"
+author: "Sofia Rossini, Sofia Biselli, Alessandro Scarpato"
+date: "2024-03-05"
+output: pdf_document
+---
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(knitr)
+library(corrplot)
+library(plotly)
+library(GGally)
+library(caret)
+library(ROCR)
+library(gam)
+library(caret)
+library(class)
+library(e1071)
+library(mice)
+library(tree)
+library(randomForest)
+library(gbm)
+```
+
+
+
+# HEART DISEASES DATASET
+
+Cardiovascular diseases (CVDs) are the number 1 cause of death globally, taking an estimated 17.9 million lives each year, which accounts for 31% of all deaths worldwide. Four out of 5CVD deaths are due to heart attacks and strokes, and one-third of these deaths occur prematurely in people under 70 years of age. Heart failure is a common event caused by CVDs and this dataset contains 11 features that can be used to predict a possible heart disease.
+
+People with cardiovascular disease or who are at high cardiovascular risk (due to the presence of one or more risk factors such as hypertension, diabetes, hyperlipidaemia or already established disease) need early detection and management wherein a machine learning model can be of great help.
+
+```{r}
+#dataset <- read.csv("C:\\Users\\Alessandro\\OneDrive\\Desktop\\uni\\stat\\project\\heart.csv")
+dataset = read.csv("/Users/Sofia/Desktop/heart.csv")
+head(dataset)
+```
+
+# ATTRIBUTE INFORMATION
+
+1.  `Age`: age of the patient [years]
+
+2.  `Sex`: sex of the patient [M: Male, F: Female]
+
+3.  `ChestPainType`: chest pain type [TA: Typical Angina, ATA: Atypical Angina, NAP: Non-Anginal Pain, ASY: Asymptomatic]
+
+4.  `RestingBP`: resting blood pressure [mm Hg]
+
+5.  `Cholesterol`: serum cholesterol [mm/dl]
+
+6.  `FastingBS`: fasting blood sugar [1: if FastingBS \> 120 mg/dl, 0: otherwise]
+
+7.  `RestingECG`: resting electrocardiogram results [Normal: Normal, ST: having ST-T wave abnormality (T wave inversions and/or ST elevation or depression of \> 0.05 mV), LVH: showing probable or definite left ventricular hypertrophy by Estes' criteria]
+
+8.  `MaxHR`: maximum heart rate achieved [Numeric value between 60 and 202]
+
+9.  `ExerciseAngina`: exercise-induced angina [Y: Yes, N: No]
+
+10. `Oldpeak`: oldpeak = ST [Numeric value measured in depression]
+
+11. `ST_Slope`: the slope of the peak exercise ST segment [Up: upsloping, Flat: flat, Down: downsloping]
+
+12. `HeartDisease`: output class [1: heart disease, 0: Normal]
+
+
+
+# SOURCE
+
+This dataset was created by combining different datasets already available independently but not combined before. In this dataset, 5 heart datasets are combined over 11 common features which makes it the largest heart disease dataset available so far for research purposes. The five datasets used for its curation are:
+
+-   Cleveland: 303 observations
+
+-   Hungarian: 294 observations
+
+-   Switzerland: 123 observations
+
+-   Long Beach VA: 200 observations
+
+-   Stalog (Heart) Data Set: 270 observations
+
+
+# DATA PROCESSING
+```{r}
+colSums(is.na(dataset))
+```
+```{r}
+which(duplicated(dataset))
+```
+```{r}
+str(dataset)
+```
+By checking the structure of the dataset we can observe 11 variables (other than the response one) divided in 6 integer variables, 1 continuos variable and 4 characters variables. If we look for the summary we can look how some covariates such as `ChestPain` and `Sex` do not present any statistical properties, therefore it will be our care to modify them.
+```{r}
+summary(dataset)
+```
+
+
+
+```{r}
+str(dataset)
+```
+```{r}
+summary(dataset)
+```
+
+
+#### TREATING MISSING VALUES IN CHOLESTEROL
+
+After examining the dataset, we noticed a significant proportion of cholesterol values recorded as 0. Given that it is physiologically implausible for an individual to have a cholesterol level of exactly 0, we undertook a data preprocessing step to address this issue. We employed the 'mice' function, which utilizes multiple imputation techniques, particularly employing a linear regression model. This approach allowed us to estimate plausible values for the missing cholesterol data points, which were originally represented as 0. By imputing these missing values, we aimed to ensure the integrity of our dataset and enable more accurate subsequent analyses.
+
+```{r}
+hist(dataset$Cholesterol, col = "yellow")
+```
+
+
+```{r}
+dataset$Cholesterol[dataset$Cholesterol == 0] <- NA
+```
+
+
+```{r message=FALSE, warning=FALSE}
+set.seed(123)
+
+missing_chol <- mice(dataset, method = 'pmm', m = 5, maxit = 50)
+```
+
+```{r}
+completed_data <- complete(missing_chol, 1)
+```
+
+```{r}
+dataset = completed_data
+```
+
+```{r}
+hist(dataset$Cholesterol, col = "yellow")
+```
+
+
+# DATA VISUALIZATION
+```{r}
+correlation_matrix <- cor(dataset[, c("Age", "RestingBP", "Cholesterol", "MaxHR", "Oldpeak", "HeartDisease")])
+corrplot(correlation_matrix, method = "color",addCoef.col = "black")
+```
+```{r}
+ggplot(dataset, aes(x = as.factor(HeartDisease), y = Age, fill = as.factor(HeartDisease))) +
+  geom_boxplot() +
+  labs(title = "Age Distribution for Patients with and without Heart Disease",
+       x = "Heart Disease", 
+       y = "Age",
+       fill = "Heart disease") +
+  theme_minimal()
+```
+```{r}
+kable(table(dataset$Age,dataset$HeartDisease))
+```
+
+```{r}
+ggplot(dataset, aes(x = factor(HeartDisease), fill = factor(HeartDisease))) +
+  geom_bar() +
+  labs(
+    title = "Heart disease",
+    x = "Heart Disease",
+    y = "Count",
+    fill = "Heart disease"
+  ) +
+  theme_minimal() 
+
+```
+
+```{r}
+kable(table(dataset$HeartDisease))
+```
+
+```{r}
+ggplot(dataset, aes(x = factor(Sex), fill = factor(HeartDisease))) +
+  geom_bar(position = "dodge", show.legend = TRUE) +
+  labs(
+    title = "Presence of Heart diseases for sex",
+    x = "Sex",
+    y = "Count",
+    fill = "Heart diseases"
+  ) +
+  theme_minimal()
+```
+```{r}
+kable(table(dataset$Sex, dataset$HeartDisease))
+```
+
+```{r}
+ggplot(dataset, aes(x = ChestPainType, fill = factor(HeartDisease))) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Frequency of Chest Pain Types",
+    x = "Chest Pain Type",
+    y = "Frequency",
+    fill = "Heart Disease"
+  ) +
+  theme_minimal()
+
+```
+```{r}
+ggplot(dataset, aes(x = Age, y = Cholesterol, color = factor(HeartDisease))) +
+  geom_point() +
+  labs(
+    title = "Age vs Cholesterol",
+    x = "Age",
+    y = "Cholesterol",
+    color = "Heart Disease"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+ggplot(dataset, aes(x = Age, y = MaxHR, color = factor(HeartDisease))) +
+  geom_point() +
+  labs(
+    title = "Age vs MaxHR",
+    x = "Age",
+    y = "MaxHR",
+    color = "Heart Disease"
+  ) +
+  theme_minimal()
+```
+
+### Transform variables into factors
+
+```{r}
+dataset$HeartDisease <- as.factor(dataset$HeartDisease)
+dataset$Sex <- as.factor(dataset$Sex)
+dataset$FastingBS <- as.factor(dataset$FastingBS)
+dataset$ChestPainType <- as.factor(dataset$ChestPainType)
+dataset$RestingECG <- as.factor(dataset$RestingECG)
+dataset$ExerciseAngina <- as.factor(dataset$ExerciseAngina)
+dataset$ST_Slope <- as.factor(dataset$ST_Slope)
+```
+
+# DATA ANALYSIS
+
+
+```{r}
+set.seed(123)
+n = dim(dataset)[1]
+index.train = sample(1:n,round(2*n/3))
+train = dataset[index.train,]
+test = dataset[-index.train,]
+```
+
+
+
+## GAM ----------------------------------------------------------------
+
+We first start by fitting a GAM using 5 degrees of freedom for all effects.
+
+```{r}
+set.seed(123)
+
+gam.5 = gam(HeartDisease ~ s(Age, 5) + Sex + ChestPainType + s(RestingBP, 5) + s(Cholesterol, 5) + FastingBS + RestingECG + s(MaxHR, 5) + ExerciseAngina + s(Oldpeak, 5) + ST_Slope, data = train, family = "binomial")
+
+summary(gam.5)
+```
+
+RestingBP 
+Cholesterol
+FastingBS
+RestingECG
+
+```{r}
+plot(gam.5, se = TRUE)
+```
+
+
+`RestingECG` and `RestingBP` seems not to be significant. Then, we try to refit the *gam* model with 3 and 10 degrees of freedom.
+
+```{r}
+set.seed(123)
+
+gam.3 = gam(HeartDisease ~ s(Age, 3) + Sex + ChestPainType + s(RestingBP, 3) + s(Cholesterol, 3) + FastingBS + RestingECG + s(MaxHR, 3) + ExerciseAngina + s(Oldpeak, 3) + ST_Slope, data = train, family = "binomial")
+
+summary(gam.3)
+```
+
+RestingBP 
+Cholesterol
+FastingBS
+RestingECG
+Sex
+
+```{r}
+set.seed(123)
+
+gam.10 = gam(HeartDisease ~ s(Age, 10) + Sex + ChestPainType + s(RestingBP, 10) + s(Cholesterol, 10) + FastingBS + RestingECG + s(MaxHR, 10) + ExerciseAngina + s(Oldpeak, 10) + ST_Slope, data = train, family = "binomial")
+
+summary(gam.10)
+```
+
+In all the 3 cases we have `RestingECG`, `FastingBS` and `restingBP` not significant. Then, we decide to remove them and continue our analysis refitting the model with 5 degrees of freedom.
+
+```{r}
+set.seed(123)
+
+gam2.5 = gam(HeartDisease ~ s(Age, 5) + Sex + ChestPainType + s(Cholesterol, 5) + s(MaxHR, 5) + ExerciseAngina + s(Oldpeak, 5) + ST_Slope, data = train, family = "binomial")
+
+summary(gam2.5)
+```
+
+```{r}
+plot(gam2.5, se = TRUE)
+```
+
+
+#### Estimate Parameters
+
+In order to find the optimal number of degrees of freedom, we try to run a grid search for optimizing it jointly for all covariates.
+
+```{r}
+set.seed(123)
+
+df.explore.part <- seq(1, 9, by = 2)
+df.explore <- expand.grid(df.explore.part, df.explore.part, df.explore.part, df.explore.part)
+
+nfolds <- 7
+set.seed(1)
+folds <- sample(1:nfolds, dim(dataset)[1], replace = TRUE)
+CV.accuracy <- matrix(nrow = nfolds, ncol = dim(df.explore)[1])
+
+for (j in 1:nfolds) {
+  print(paste0('fold ', j))
+  for (i in 1:dim(df.explore)[1]) {
+    datafold <- dataset[which(folds != j), ]
+    
+    gam.ij = gam(HeartDisease ~ Sex + ChestPainType +
+                   s(Age, df = df.explore[i, 1]) +
+                   s(Cholesterol, df = df.explore[i, 2]) +
+                   s(MaxHR, df = df.explore[i, 3]) + 
+                   ExerciseAngina + s(Oldpeak, df = df.explore[i, 4]) +
+                    ST_Slope,
+                  data = datafold, family ="binomial")
+    
+    yhat <- ifelse(predict(gam.ij, newdata = dataset[which(folds == j), ]) > 0.5, 1, 0)
+    true_labels <- dataset$HeartDisease[which(folds == j)]
+    
+    CV.accuracy[j, i] <- sum(yhat == true_labels) / length(true_labels)
+  }
+}
+```
+
+```{r}
+accuracy_estimate <- colMeans(CV.accuracy)
+
+plot(accuracy_estimate, type = 'b', lwd = 3, col=factor(df.explore[,1]))
+```
+
+```{r}
+accuracy_estimate <- colMeans(CV.accuracy)
+
+plot(accuracy_estimate, type = 'b', lwd = 3, col=factor(df.explore[,2]))
+```
+
+```{r}
+accuracy_estimate <- colMeans(CV.accuracy)
+
+plot(accuracy_estimate, type = 'b', lwd = 3, col=factor(df.explore[,3]))
+```
+
+```{r}
+accuracy_estimate <- colMeans(CV.accuracy)
+
+plot(accuracy_estimate, type = 'b', lwd = 3, col=factor(df.explore[,4]))
+```
+Since we have four covariates, this is quite expensive and it becomes difficult to interpret the graphs.
+
+Having tried gams with different degrees of freedom, we see that the plots and the summary of the models are quite similar, suggesting that the choice of degrees of freedom is not highly problematic. Then, we decide to set 5 degrees of freedom for the covariates `Age`, `Cholesterol`, `MaxHR`, `Oldpeak`.
+
+
+```{r message=FALSE, warning=FALSE}
+set.seed(123)
+
+gam.opt = gam(HeartDisease ~ s(Age, 5) + Sex + ChestPainType + s(Cholesterol, 5) + s(MaxHR, 5) + ExerciseAngina + s(Oldpeak, 5) + ST_Slope, data = train, family = "binomial")
+
+summary(gam.opt)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+plot(gam.opt, se = TRUE)
+```
+### Confusion matrix
+
+```{r}
+set.seed(123)
+
+yhat.gam = predict(gam.opt,newdata=test,type='response')
+pred.gam = factor(ifelse(yhat.gam>0.5,'1','0'))
+cm.gam = confusionMatrix(data=pred.gam,test[,12])
+cm.gam
+```
+
+
+
+```{r}
+rocplot=function(pred, truth, ...){
+  predob = prediction(pred, truth)
+  perf = performance(predob , "tpr", "fpr") 
+  plot(perf ,...)
+  auc = performance(predob , "auc")
+  return(attributes(auc)$y.values)
+}
+```
+
+```{r}
+auc.GAM = rocplot(pred=yhat.gam,truth=test$HeartDisease,lwd=2,colorize=TRUE)
+text(0.8,0.2,paste0('AUC=',round(auc.GAM[[1]],4)),font=2)
+```
+
+```{r}
+cm_df.gam <- as.data.frame(cm.gam$table)
+colnames(cm_df.gam) <- c("Predicted", "Actual", "Count")
+confusion_plot.gam <- ggplot(cm_df.gam, aes(x=Predicted, y=Actual, fill=Count)) +
+  geom_tile(color="black") +
+  geom_text(aes(label=Count), color="black", size=4) +  
+  labs(title="Confusion Matrix", x="Predicted", y="Actual") +
+  scale_fill_gradient(low = "coral", high = "powderblue") +
+  scale_x_discrete(position = "top") +
+  scale_y_discrete(position = "right") +
+  theme_minimal()
+print(confusion_plot.gam)
+
+```
+## SVM ----------------------------------------------------------------
+
+SVM aims to find the optimal hyperplane that best separates the data points belonging to different classes in the feature space. This hyperplane is positioned so as to maximize the margin, which is the distance between the hyperplane and the nearest data points from each class, known as support vectors.
+
+
+Utilizing the tune function to optimize gamma and cost parameters aims to reduce the classification error by finding the best combination of parameters that minimizes misclassification on the training data while maintaining good generalization performance on unseen data.
+```{r}
+numerical_train = train[, c(1, 4, 5, 8, 10, 12)]
+numerical_test = test[, c(1, 4, 5, 8, 10, 12)]
+```
+
+
+```{r}
+set.seed(123)
+tune.out_svm=tune(svm,HeartDisease~.,data=numerical_train,kernel="radial",
+              ranges=list(cost=c(0.01, 0.1, 1,5,10),gamma=c(0.5,1,2,3) ))
+
+summary(tune.out_svm)
+```
+```{r}
+performance <- tune.out_svm$performance
+
+error <- performance$error
+cost <- performance$cost
+gamma <- performance$gamma
+
+sorted_indices <- order(cost)
+sorted_cost <- cost[sorted_indices]
+sorted_error <- error[sorted_indices]
+sorted_gamma <- gamma[sorted_indices]
+
+min_error <- tapply(error, gamma, min)
+
+unique_gamma <- unique(gamma)
+
+data <- data.frame(gamma = unique_gamma, error = min_error)
+
+plot(data$gamma, data$error, type = "b", pch = 1, xlab = "Gamma", ylab = "Missclassification Error")
+abline(v = 1, col = "coral", lty = 5, lwd = 2)
+```
+
+```{r}
+min_error <- tapply(sorted_error, sorted_cost, min)
+
+unique_cost <- unique(sorted_cost)
+
+data <- data.frame(cost = unique_cost, error = min_error)
+
+plot(data$cost, data$error, type = "b", pch = 1, xlab = "Cost", ylab = "Missclassification Error")
+abline(v = 1, col = "coral", lty = 5, lwd = 2)
+```
+
+
+
+
+
+
+
+```{r}
+set.seed(123)
+
+bestmod.SVM=tune.out_svm$best.model
+summary(bestmod.SVM)
+```
+
+
+#### Confusion Matrix
+
+```{r}
+set.seed(123)
+prediction.SVM = predict(bestmod.SVM,newdata=test)
+cm.svm = confusionMatrix(data=prediction.SVM,test[,12])
+cm.svm
+```
+
+
+
+
+```{r}
+yhat.SVM = attributes(predict(bestmod.SVM,test,decision.values=TRUE))$decision.values
+
+auc.SVM = rocplot(pred=yhat.SVM,truth=test$HeartDisease,lwd=2,colorize=TRUE)
+text(0.8,0.2,paste0('AUC=',round(auc.SVM[[1]],4)),font=2)
+```
+
+```{r}
+cm_df.svm <- as.data.frame(cm.svm$table)
+colnames(cm_df.svm) <- c("Predicted", "Actual", "Count")
+confusion_plot.svm <- ggplot(cm_df.svm, aes(x=Predicted, y=Actual, fill=Count)) +
+  geom_tile(color="black") +
+  geom_text(aes(label=Count), color="black", size=4) +  
+  labs(title="Confusion Matrix", x="Predicted", y="Actual") +
+  scale_fill_gradient(low = "coral", high = "powderblue") +
+  scale_x_discrete(position = "top") +
+  scale_y_discrete(position = "right") +
+  theme_minimal()
+print(confusion_plot.svm)
+
+```
+
+
+## TREE ----------------------------------------------------------------
+
+Decision Tree operates by iteratively dividing the feature space into regions, with each region corresponding to one of the two possible class labels. This process continues until the data within each region is sufficiently homogeneous in terms of the class labels. At each step of the partitioning process, the algorithm selects the feature and the corresponding threshold that best separates the data into two subsets, aiming to maximize the purity or information gain.
+
+The Decision Tree model is constructed as a hierarchical structure where each internal node represents a decision based on a specific feature, and each leaf node represents the final classification decision. As the algorithm progresses, it determines the optimal splits in the feature space to effectively classify the data points into the two classes.
+
+```{r}
+set.seed(123)
+tree = tree(HeartDisease~., data=train)
+plot(tree,lwd=2,col='darkgray')
+text(tree,pretty=0,cex=1,digits=4,font=2,col='darkblue')
+```
+```{r}
+set.seed(123)
+tree.big = tree(factor(HeartDisease)~., data=train,control=tree.control(nobs=dim(train)[1],mincut = 1, minsize = 2, mindev = 0.0001))
+plot(tree.big,lwd = 2)
+text(tree.big,col = "darkblue",cex = 0.5)
+```
+```{r}
+set.seed(123)
+cv.data = cv.tree(tree.big ,FUN=prune.misclass, K = 10) 
+layout(cbind(1,2))
+plot(cv.data$size,cv.data$dev,type='b',pch=16,xlab='Size',ylab='CV error')
+abline(v = 10, col = 'coral', lty = 2, lwd= 2)
+plot(cv.data$size,cv.data$dev,type='b',pch=16,xlab='Size',ylab='CV error',xlim = c(3,30), ylim = c(100, 120))
+abline(v = 10, col = 'coral', lty = 2, lwd= 2)
+```
+
+
+```{r}
+prune.tree = prune.misclass(tree.big,best = 10)
+
+plot(prune.tree,lwd=2,col='darkgray')
+text(prune.tree,pretty=0,cex=1,digits=4,font=2,col='darkblue')
+```
+
+#### Confusion Matrix
+
+```{r}
+prediction.tree <- predict(prune.tree, newdata = test, type = "class")
+```
+
+```{r}
+cm.tree = confusionMatrix(prediction.tree,test[,12])
+cm.tree
+```
+
+
+
+
+
+```{r}
+yhat.tree <- predict(prune.tree, newdata = test, type = "vector")
+auc.tree = rocplot(-yhat.tree[,1],test$HeartDisease,lwd=2,colorize=TRUE)
+text(0.8,0.2,paste0('AUC=',round(auc.tree[[1]],4)),font=2)
+```
+
+```{r}
+cm_df.tree <- as.data.frame(cm.tree$table)
+colnames(cm_df.tree) <- c("Predicted", "Actual", "Count")
+confusion_plot.tree <- ggplot(cm_df.tree, aes(x=Predicted, y=Actual, fill=Count)) +
+  geom_tile(color="black") +
+  geom_text(aes(label=Count), color="black", size=4) +  
+  labs(title="Confusion Matrix", x="Predicted", y="Actual") +
+  scale_fill_gradient(low = "coral", high = "powderblue") +
+  scale_x_discrete(position = "top") +
+  scale_y_discrete(position = "right") +
+  theme_minimal()
+print(confusion_plot.tree)
+```
+
+
+## RANDOM FOREST ----------------------------------------------------------------
+
+First of all we should compute the optimal number of covariates to be used at each split
+
+```{r}
+set.seed(123)
+
+accuracy <- double(dim(dataset)[2] - 1)
+precision <- double(dim(dataset)[2] - 1)
+
+for(mtry in 1:(dim(dataset)[2] - 1)) {
+  rf <- randomForest(HeartDisease ~ . ,
+                     data = train,
+                     mtry = mtry,
+                     ntree = 400) 
+  
+  pred <- predict(rf, test, type = "response") # Predictions on Test Set for each Tree
+  accuracy[mtry] <- confusionMatrix(data = pred, reference = test$HeartDisease)$overall["Accuracy"]
+  precision[mtry] <- confusionMatrix(data = pred, reference = test$HeartDisease)$byClass["Precision"]
+  
+  cat(mtry, " ")
+}
+```
+
+```{r}
+matplot(1:(dim(dataset)[2]-1) , cbind(accuracy,precision) , pch=19 , col= c("coral","darkblue") ,type="b", lwd = 2,
+        ylab="Rate",xlab="Number of Predictors Considered at each Split")
+grid()
+legend("topright",legend=c("Accuracy","Precision"),pch=19, col= c("coral","darkblue"))
+```
+
+```{r}
+p = length(dataset[,-12])
+mtry.opt = (1:p)[which.max(accuracy)]
+mtry.opt
+```
+
+
+```{r}
+set.seed(123)
+
+rf.data <- randomForest(HeartDisease ~ .,
+                       data = train,
+                       mtry = mtry.opt,
+                       B = 400,
+                       importance = TRUE)
+```
+
+
+#### Confusion Matrix
+
+```{r}
+prediction.RF = predict(rf.data,test) 
+cm.rf = confusionMatrix(data=prediction.RF,test[,12])
+cm.rf
+```
+
+
+```{r}
+yhat.RF = predict(rf.data,test,type='prob')[,1]
+auc.RF = rocplot(pred=-yhat.RF,truth=test$HeartDisease,lwd=2,colorize=TRUE)
+text(0.8,0.2,paste0('AUC=',round(auc.RF[[1]],4)),font=2)
+```
+
+```{r}
+cm_df.rf <- as.data.frame(cm.rf$table)
+colnames(cm_df.rf) <- c("Predicted", "Actual", "Count")
+confusion_plot.rf <- ggplot(cm_df.rf, aes(x=Predicted, y=Actual, fill=Count)) +
+  geom_tile(color="black") +
+  geom_text(aes(label=Count), color="black", size=4) +  
+  labs(title="Confusion Matrix", x="Predicted", y="Actual") +
+  scale_fill_gradient(low = "coral", high = "powderblue") +
+  scale_x_discrete(position = "top") +
+  scale_y_discrete(position = "right") +
+  theme_minimal()
+print(confusion_plot.rf)
+```
+
+
+```{r}
+importance(rf.data)
+```
+
+```{r}
+varImpPlot(rf.data)
+```
+
+## COMPARISONS
+
+```{r}
+accuracy <- c(cm.gam$overall[1], cm.svm$overall[1], cm.tree$overall[1], cm.rf$overall[1])
+
+models <- c("GAM", "SVM", "Decision Tree", "Random Forest")
+
+for (i in 1:length(models)) {
+  cat("Accuracy of", models[i], ":", accuracy[i], "\n")
+}
+```
+
+```{r}
+accuracy_metrics <- list(
+  GAM = cm.gam$overall["Accuracy"],
+  SVM = cm.svm$overall["Accuracy"],
+  TREE = cm.tree$overall["Accuracy"],
+  RF = cm.rf$overall["Accuracy"]
+)
+
+accuracy_table <- data.frame(
+  Method = names(accuracy_metrics),
+  Accuracy = unlist(accuracy_metrics)
+)
+
+model_order <- c("GAM", "SVM", "TREE", "RF")
+
+accuracy_table$Method <- factor(accuracy_table$Method, levels = model_order)
+
+accuracy_plot <- ggplot(accuracy_table, aes(x = Method, y = Accuracy, fill = Method)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(Accuracy, 3), color = ifelse(Accuracy == max(Accuracy), "red", "black")), 
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 4) +
+  labs(x = "Models", y = "Accuracy", fill = "Model") +
+  scale_color_identity() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(accuracy_plot)
+```
+
+```{r}
+precision_metrics <- list(
+  GAM = cm.gam$byClass["Precision"],
+  SVM = cm.svm$byClass["Precision"],
+  TREE = cm.tree$byClass["Precision"],
+  RF = cm.rf$byClass["Precision"]
+)
+
+precision_table <- data.frame(
+  Method = names(precision_metrics),
+  Precision = unlist(precision_metrics)
+)
+
+model_order <- c("GAM", "SVM", "TREE", "RF")
+
+precision_table$Method <- factor(precision_table$Method, levels = model_order)
+
+precision_plot <- ggplot(precision_table, aes(x = Method, y = Precision, fill = Method)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(Precision, 3), color = ifelse(Precision == max(Precision), "red", "black")), 
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 4) +
+  labs(x = "Models", y = "Precision", fill = "Model") +
+  scale_color_identity() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(precision_plot)
+```
+
+```{r}
+recall_metrics <- list(
+  GAM = cm.gam$byClass["Recall"],
+  SVM = cm.svm$byClass["Recall"],
+  TREE = cm.tree$byClass["Recall"],
+  RF = cm.rf$byClass["Recall"]
+)
+
+recall_table <- data.frame(
+  Method = names(recall_metrics),
+  Recall = unlist(recall_metrics)
+)
+
+model_order <- c("GAM", "SVM", "TREE", "RF")
+
+recall_table$Method <- factor(recall_table$Method, levels = model_order)
+
+recall_plot <- ggplot(recall_table, aes(x = Method, y = Recall, fill = Method)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(Recall, 3), color = ifelse(Recall == max(Recall), "red", "black")), 
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 4) +
+  labs(x = "Models", y = "Recall", fill = "Model") +
+  scale_color_identity() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+print(recall_plot)
+```
+
+```{r}
+f1_metrics <- list(
+  GAM = cm.gam$byClass["F1"],
+  SVM = cm.svm$byClass["F1"],
+  TREE = cm.tree$byClass["F1"],
+  RF = cm.rf$byClass["F1"]
+)
+
+f1_table <- data.frame(
+  Method = names(f1_metrics),
+  f1_score= unlist(f1_metrics)
+)
+
+model_order <- c("GAM", "SVM", "TREE", "RF")
+
+f1_table$Method <- factor(f1_table$Method, levels = model_order)
+
+f1_plot <- ggplot(f1_table, aes(x = Method, y = f1_score, fill = Method)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(f1_score, 3), color = ifelse(f1_score == max(f1_score), "red", "black")), 
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 4) +
+  labs(x = "Models", y = "f1_score", fill = "Model") +
+  scale_color_identity() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+print(f1_plot)
+```
+
+
+
+
+```{r}
+Alessandro <- data.frame(Age = 23,
+                       Sex = "M",
+                       ChestPainType = "NAP",
+                       FastingBS = as.factor(0),
+                       MaxHR = 188,
+                       ExerciseAngina = "N",
+                       Oldpeak = 0.5,
+                       ST_Slope = "Up")
+
+probability <- predict(gam.opt, newdata = Alessandro, type = "response")
+
+cat("Probability of having cardiovascular disease:", probability, "\n")
+```
+
