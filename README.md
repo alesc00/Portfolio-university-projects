@@ -1,6 +1,6 @@
 # 🎓 Alessandro Scarpato University Portfolio
 
-This repository contains links to my university projects focused on Data Science, Machine Learning, and Software Engineering.
+This repository contains my university projects focused on Data Science, Machine Learning, and Software Engineering.
 
 ## 🗂️ Projects
 
