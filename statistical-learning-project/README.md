@@ -5,6 +5,8 @@ This project applies various statistical learning methods to analyze the **Heart
 ## 📁 Project Contents
 
 - **project.Rmd**: R Markdown file containing the full analysis, code, and results of the statistical learning models.
+- **data/heart_disease.csv**: The dataset used for the analysis.
+- **docs/presentation.pdf**: A presentation summarizing the project methodology and findings.
 
 ## 📊 Summary
 
@@ -34,5 +36,7 @@ To develop predictive models that can accurately classify individuals as either 
 
 ## 📌 Conclusions:
 The project successfully demonstrates the application of various machine learning techniques to predict cardiovascular diseases. While logistic regression provides a baseline, more advanced models like random forests and gradient boosting significantly improve predictive accuracy.
+
+⚠️ **Note**: The dataset is provided in the `data/` folder and the project summary is also available in the `docs/` folder as a PDF presentation.
 
 
