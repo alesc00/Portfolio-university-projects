@@ -10,10 +10,10 @@ This repository contains links to my university projects focused on Data Science
 2. **[🤖 Deep Learning Project](https://github.com/alesc00/deep-learning-traffic-sign-recognition.git)**  
    *Developed a neural network for image classification.*
 
-3. **[📈 Statistical Learning Project](#link-alla-repository-specifica)**  
+3. **[📈 Statistical Learning Project](https://github.com/alesc00/statistical-learning-project.git)**  
    *Performed regression and classification tasks using machine learning algorithms.*
 
-4. **[📝 Text Mining Project](#link-alla-repository-specifica)**  
+4. **[📝 Text Mining Project](https://github.com/alesc00/Twitter-Sentiment-Analysis-Project.git)**  
    *Extracted insights from textual data using natural language processing.*
 
 ## 👨‍💻 About Me
